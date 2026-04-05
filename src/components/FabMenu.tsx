@@ -1,22 +1,17 @@
 "use client";
 
-import React from "react";
 import { useAudioContext } from "@/context/AudioContext";
-import { Music, RefreshCw, Mic, FolderPlus, Layers, Plus, X } from "lucide-react";
+import { Music, Mic, FolderPlus, Plus, X } from "lucide-react";
 
 export function FabMenu() {
-  const { isFabOpen, toggleFab, openUpload, openRecord, openFolderModal } = useAudioContext();
+  const { isFabOpen, toggleFab, openUpload, openRecord, openFolderModal, activeTrackId } = useAudioContext();
   return (
-    <div className="fab-wrapper" id="fab-wrapper">
+    <div className={`fab-wrapper${activeTrackId ? ' fab-wrapper--player' : ''}`} id="fab-wrapper">
       {/* Sliding Menu */}
       <div className="fab-menu" id="fab-menu" aria-hidden={!isFabOpen}>
         <button className="fab-menu__item" id="btn-fab-audio" aria-label="Upload Audio" onClick={openUpload}>
           <Music size={16} />
           Upload Audio
-        </button>
-        <button className="fab-menu__item" id="btn-fab-convert" aria-label="Axc Convert">
-          <RefreshCw size={16} />
-          Convert
         </button>
         <button className="fab-menu__item" id="btn-fab-record" aria-label="Record Mic" onClick={openRecord}>
           <Mic size={16} color="var(--red, #ff4040)" />
@@ -25,10 +20,6 @@ export function FabMenu() {
         <button className="fab-menu__item" id="btn-fab-folder" aria-label="New Folder" onClick={openFolderModal}>
           <FolderPlus size={16} />
           New Folder
-        </button>
-        <button className="fab-menu__item" id="btn-fab-project" aria-label="New Project">
-          <Layers size={16} />
-          New Project
         </button>
       </div>
       

@@ -28,7 +28,12 @@ type AudioContextType = {
   isUploadOpen: boolean;
   isRecordOpen: boolean;
   isFolderModalOpen: boolean;
+  isSettingsOpen: boolean;
   activeTrackId: string | null;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
   addTrack: (track: Track) => void;
   removeTrack: (id: string) => void;
   addFolder: (folder: Folder) => void;
@@ -40,7 +45,11 @@ type AudioContextType = {
   closeRecord: () => void;
   openFolderModal: () => void;
   closeFolderModal: () => void;
+  openSettings: () => void;
+  closeSettings: () => void;
   togglePlay: (id: string, url?: string) => void;
+  seek: (time: number) => void;
+  setVolume: (vol: number) => void;
 };
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -54,10 +63,15 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isRecordOpen, setIsRecordOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Audio Player State
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolumeState] = useState(1);
 
   useEffect(() => {
     async function loadData() {
@@ -121,21 +135,39 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   };
   const closeFolderModal = () => setIsFolderModalOpen(false);
 
+  const openSettings = () => setIsSettingsOpen(true);
+  const closeSettings = () => setIsSettingsOpen(false);
+
   const togglePlay = (id: string, url?: string) => {
     if (!audioRef.current || !url) return;
-    
+
     if (activeTrackId === id) {
       if (!audioRef.current.paused) {
         audioRef.current.pause();
-        setActiveTrackId(null);
+        setIsPlaying(false);
       } else {
         audioRef.current.play();
+        setIsPlaying(true);
       }
     } else {
       audioRef.current.src = url;
       audioRef.current.play();
       setActiveTrackId(id);
+      setIsPlaying(true);
+      setCurrentTime(0);
     }
+  };
+
+  const seek = (time: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = time;
+    setCurrentTime(time);
+  };
+
+  const setVolume = (vol: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = vol;
+    setVolumeState(vol);
   };
 
   return (
@@ -150,6 +182,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         isRecordOpen,
         isFolderModalOpen,
         activeTrackId,
+        isPlaying,
+        currentTime,
+        duration,
+        volume,
         addTrack,
         removeTrack,
         addFolder,
@@ -161,12 +197,19 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         closeRecord,
         openFolderModal,
         closeFolderModal,
-        togglePlay
+        isSettingsOpen,
+        openSettings,
+        closeSettings,
+        togglePlay,
+        seek,
+        setVolume,
       }}
     >
-      <audio 
-        ref={audioRef} 
-        onEnded={() => setActiveTrackId(null)}
+      <audio
+        ref={audioRef}
+        onEnded={() => { setActiveTrackId(null); setIsPlaying(false); setCurrentTime(0); }}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
         style={{ display: 'none' }}
       />
       {children}

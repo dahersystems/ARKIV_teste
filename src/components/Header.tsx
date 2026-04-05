@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Bell, User, Search, X, Music, Upload, Folder, CheckCheck } from "lucide-react";
+import { Bell, Search, X, Music, Upload, Folder, CheckCheck, Settings, LogOut, HardDrive, Shield } from "lucide-react";
 import { useAudioContext } from "@/context/AudioContext";
+import { supabase } from "@/lib/supabase";
 
 type Notif = { id: number; title: string; body: string; read: boolean; icon: "upload" | "folder" | "music" | "system"; time: string };
 
@@ -12,17 +13,29 @@ const INITIAL_NOTIFS: Notif[] = [
 ];
 
 export function Header() {
-  const { tracks, folders } = useAudioContext();
+  const { tracks, folders, openSettings } = useAudioContext();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>(INITIAL_NOTIFS);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userInitials, setUserInitials] = useState("AU");
   const searchRef = useRef<HTMLInputElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const unread = notifs.filter(n => !n.read).length;
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) {
+        setUserEmail(data.user.email);
+        const parts = data.user.email.split("@")[0].split(/[._-]/);
+        setUserInitials((parts[0]?.[0] ?? "A").toUpperCase() + (parts[1]?.[0] ?? parts[0]?.[1] ?? "U").toUpperCase());
+      }
+    });
+  }, []);
 
   // Close panels on outside click
   useEffect(() => {
@@ -47,7 +60,12 @@ export function Header() {
   }, []);
 
   const markAllRead = () => setNotifs(n => n.map(x => ({ ...x, read: true })));
-  const totalStorage = `${tracks.length} faixas · ${folders.length} pastas`;
+  const handleSignOut = async () => { await supabase.auth.signOut(); window.location.reload(); };
+
+  // Mock storage: each track ~3MB
+  const usedMB = tracks.length * 3;
+  const totalMB = 500;
+  const storagePercent = Math.min(100, Math.round((usedMB / totalMB) * 100));
 
   const getNotifIcon = (icon: Notif["icon"]) => {
     switch (icon) {
@@ -150,19 +168,27 @@ export function Header() {
                 aria-label="Perfil"
                 onClick={() => { setProfileOpen(v => !v); setNotifOpen(false); }}
               >
-                <div className="avatar">AU</div>
+                <div className="avatar">{userInitials}</div>
               </button>
 
               {profileOpen && (
                 <div className="header__dropdown profile-panel">
+                  {/* Hero */}
                   <div className="profile-panel__hero">
-                    <div className="profile-panel__avatar">AU</div>
+                    <div className="profile-panel__avatar-wrap">
+                      <div className="profile-panel__avatar">{userInitials}</div>
+                      <span className="profile-panel__online-dot" />
+                    </div>
                     <div className="profile-panel__info">
-                      <strong>Arkiv User</strong>
-                      <span>admin@arkiv.studio</span>
+                      <strong>{userEmail ? userEmail.split("@")[0] : "Arkiv User"}</strong>
+                      <span>{userEmail ?? "admin@arkiv.studio"}</span>
+                      <span className="profile-panel__plan">
+                        <Shield size={9} /> Studio Free
+                      </span>
                     </div>
                   </div>
 
+                  {/* Stats */}
                   <div className="profile-panel__stats">
                     <div className="profile-stat">
                       <span className="profile-stat__value">{tracks.length}</span>
@@ -175,14 +201,31 @@ export function Header() {
                     </div>
                     <div className="profile-stat__sep" />
                     <div className="profile-stat">
-                      <span className="profile-stat__value profile-stat__value--green">●</span>
-                      <span className="profile-stat__label">Online</span>
+                      <span className="profile-stat__value">{tracks.length + folders.length}</span>
+                      <span className="profile-stat__label">Total</span>
                     </div>
                   </div>
 
+                  {/* Storage bar */}
+                  <div className="profile-panel__storage">
+                    <div className="profile-storage__header">
+                      <span className="profile-storage__label"><HardDrive size={11} /> Armazenamento</span>
+                      <span className="profile-storage__value">{usedMB} MB / {totalMB} MB</span>
+                    </div>
+                    <div className="profile-storage__bar">
+                      <div className="profile-storage__fill" style={{ width: `${storagePercent}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
                   <div className="profile-panel__actions">
-                    <button className="btn btn--ghost w-100">Configurações</button>
-                    <button className="btn btn--ghost w-100" style={{ color: "var(--red)" }}>Sair</button>
+                    <button className="profile-action-btn" onClick={() => { setProfileOpen(false); openSettings(); }}>
+                      <Settings size={14} /> Configurações
+                    </button>
+                    <div className="profile-panel__divider" />
+                    <button className="profile-action-btn profile-action-btn--danger" onClick={handleSignOut}>
+                      <LogOut size={14} /> Sair
+                    </button>
                   </div>
                 </div>
               )}

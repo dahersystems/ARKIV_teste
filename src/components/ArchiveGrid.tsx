@@ -94,27 +94,6 @@ export function ArchiveGrid() {
 
   return (
     <main className="main" id="main">
-      <div className="streaming-bar" id="streaming-now" aria-label="Em reprodução agora">
-        <div id="streaming-now-content" className="streaming-bar__content">
-          {activeTrackId ? (
-            <div className="stream-inline">
-              <div className="stream-inline__dot"></div>
-              <span className="stream-inline__name">
-                {tracks.find(t => t.id === activeTrackId)?.name || 'Unknown Audio'}
-              </span>
-              <div className="stream-inline__bars">
-                <div className="b" style={{"--d": "0.6s", "--dl": "0.1s", "--mh": "12px"} as React.CSSProperties}></div>
-                <div className="b" style={{"--d": "0.8s", "--dl": "0.3s", "--mh": "10px"} as React.CSSProperties}></div>
-                <div className="b" style={{"--d": "0.5s", "--dl": "0.0s", "--mh": "14px"} as React.CSSProperties}></div>
-                <div className="b" style={{"--d": "0.7s", "--dl": "0.2s", "--mh": "8px"} as React.CSSProperties}></div>
-              </div>
-            </div>
-          ) : (
-            <span className="streaming-bar__idle">— nada em reprodução</span>
-          )}
-        </div>
-      </div>
-
       <section className="archive-section" aria-label="Arquivo de arquivos">
         {currentFolderId ? (
           <div className="folder-header">
