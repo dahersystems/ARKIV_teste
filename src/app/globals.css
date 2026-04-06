@@ -719,6 +719,7 @@ input, select { font-family: inherit; border: none; outline: none; background: n
 .upload-modal__input:focus { border-color: var(--green); outline: none; }
 
 .upload-modal__actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 24px 24px; }
+.upload-modal__error { margin: 0 24px; padding: 10px 14px; background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.25); border-radius: 10px; font-size: 12px; color: var(--red); }
 
 /* Drop Zone */
 .drop-zone {

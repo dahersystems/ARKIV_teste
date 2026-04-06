@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Bell, Search, X, Music, Upload, Folder, CheckCheck, Settings, LogOut, HardDrive, Shield } from "lucide-react";
 import { useAudioContext } from "@/context/AudioContext";
 import { supabase } from "@/lib/supabase";
@@ -180,8 +180,8 @@ export function Header() {
                       <span className="profile-panel__online-dot" />
                     </div>
                     <div className="profile-panel__info">
-                      <strong>{userEmail ? userEmail.split("@")[0] : "Arkiv User"}</strong>
-                      <span>{userEmail ?? "admin@arkiv.studio"}</span>
+                      <strong>{userEmail ? userEmail.split("@")[0] : "Usuário"}</strong>
+                      <span>{userEmail ?? "—"}</span>
                       <span className="profile-panel__plan">
                         <Shield size={9} /> Studio Free
                       </span>

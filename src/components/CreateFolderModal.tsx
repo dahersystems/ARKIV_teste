@@ -10,15 +10,19 @@ export function CreateFolderModal() {
   const [folderName, setFolderName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleSubmit = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
-    if (!folderName.trim()) return;
-    
+    const safeName = folderName.replace(/<[^>]*>/g, "").replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 100);
+    if (!safeName) return;
+
     setIsSubmitting(true);
-    
+    setSubmitError(null);
+
     const { data, error } = await supabase
       .from('folders')
-      .insert({ name: folderName.trim() })
+      .insert({ name: safeName })
       .select()
       .single();
 
@@ -31,10 +35,9 @@ export function CreateFolderModal() {
       setFolderName("");
       closeFolderModal();
     } else {
-      alert("Erro ao criar pasta. Verifique a tabela 'folders' no Supabase.");
-      console.error(error);
+      setSubmitError("Erro ao criar pasta. Tente novamente.");
     }
-    
+
     setIsSubmitting(false);
   };
 
@@ -62,7 +65,8 @@ export function CreateFolderModal() {
               type="text" 
               className="upload-modal__input" 
               id="folder-name" 
-              placeholder="Ex: Inspirações, Beats..." 
+              placeholder="Ex: Inspirações, Beats..."
+              maxLength={100}
               value={folderName}
               onChange={(e) => setFolderName(e.target.value)}
               autoFocus
@@ -70,6 +74,10 @@ export function CreateFolderModal() {
             />
           </div>
           
+          {submitError && (
+            <p className="upload-modal__error">{submitError}</p>
+          )}
+
           <div className="upload-modal__actions">
             <button type="button" className="btn btn--ghost" onClick={closeFolderModal} disabled={isSubmitting}>Cancelar</button>
             <button type="submit" className="btn btn--primary" disabled={isSubmitting || !folderName.trim()}>

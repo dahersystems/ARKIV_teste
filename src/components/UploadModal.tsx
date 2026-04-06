@@ -1,11 +1,25 @@
 "use client";
 
-import React, { useState, FormEvent, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useAudioContext } from "@/context/AudioContext";
 import { X, Upload, Music, CheckCircle2, Loader2, CloudUpload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type UploadState = "idle" | "uploading" | "done";
+
+const ALLOWED_MIME = new Set([
+  "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav",
+  "audio/ogg", "audio/flac", "audio/x-flac",
+  "audio/mp4", "audio/aac", "audio/x-m4a", "audio/m4a",
+  "audio/webm",
+]);
+const MAX_FILE_SIZE_MB = 100;
+const MAX_NAME_LENGTH  = 100;
+
+/** Strip HTML tags and control characters from user-provided strings */
+function sanitize(s: string): string {
+  return s.replace(/<[^>]*>/g, "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+}
 
 export function UploadModal() {
   const { isUploadOpen, closeUpload, addTrack, currentFolderId } = useAudioContext();
@@ -14,11 +28,23 @@ export function UploadModal() {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const validateFile = (f: File): string | null => {
+    if (!ALLOWED_MIME.has(f.type))
+      return "Tipo de arquivo não suportado. Use MP3, WAV, OGG, FLAC ou M4A.";
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024)
+      return `Arquivo muito grande. Limite: ${MAX_FILE_SIZE_MB} MB.`;
+    return null;
+  };
+
   const pickFile = (selected: File) => {
+    const err = validateFile(selected);
+    if (err) { setFileError(err); return; }
+    setFileError(null);
     setFile(selected);
-    if (!fileName) setFileName(selected.name.replace(/\.[^/.]+$/, ""));
+    if (!fileName) setFileName(sanitize(selected.name.replace(/\.[^/.]+$/, "")).slice(0, MAX_NAME_LENGTH));
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -37,22 +63,32 @@ export function UploadModal() {
     closeUpload();
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!fileName.trim() || !file) return;
+    const safeName = sanitize(fileName).slice(0, MAX_NAME_LENGTH);
+    if (!safeName || !file) return;
+
+    // Double-check validation server-side guard on client
+    const err = validateFile(file);
+    if (err) { setFileError(err); return; }
 
     setUploadState("uploading");
     setProgress(10);
+    setFileError(null);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado.");
+
+      // Namespace por user_id para coincidir com as políticas RLS do storage
+      const fileExt = file.name.split('.').pop()?.toLowerCase() ?? "bin";
+      const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
       setProgress(30);
 
       const { error: uploadError } = await supabase.storage
         .from('arkiv-audio')
-        .upload(filePath, file);
+        .upload(filePath, file, { contentType: file.type });
 
       if (uploadError) throw uploadError;
 
@@ -65,11 +101,11 @@ export function UploadModal() {
       const { data: trackData, error: dbError } = await supabase
         .from('tracks')
         .insert([{
-          name: fileName,
+          name: safeName,
           type: "track",
           status: "ready",
           audio_url: publicUrl,
-          folder_id: currentFolderId || null
+          folder_id: currentFolderId || null,
         }])
         .select()
         .single();
@@ -91,9 +127,8 @@ export function UploadModal() {
 
       setTimeout(() => handleClose(), 1200);
 
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Erro ao enviar arquivo.");
+    } catch {
+      setFileError("Erro ao enviar arquivo. Tente novamente.");
       setUploadState("idle");
       setProgress(0);
     }
@@ -179,6 +214,10 @@ export function UploadModal() {
               </div>
             )}
           </div>
+
+          {fileError && (
+            <p className="upload-modal__error">{fileError}</p>
+          )}
 
           {/* Track name */}
           {file && uploadState === "idle" && (

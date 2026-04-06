@@ -47,14 +47,15 @@ export function ArchiveGrid() {
     ));
     setDraggingId(null);
     const { error } = await supabase.from('tracks').update({ folder_id: folderId }).eq('id', draggingId);
-    if (error) { console.error(error); setLocalTracks(null); }
+    if (error) { setLocalTracks(null); }
   };
 
   const handleRename = async (trackId: string) => {
-    if (!editName.trim()) return;
-    setLocalTracks(displayTracks.map(t => t.id === trackId ? { ...t, name: editName.trim() } : t));
+    const safeName = editName.replace(/<[^>]*>/g, "").replace(/[\x00-\x1F\x7F]/g, "").trim().slice(0, 100);
+    if (!safeName) return;
+    setLocalTracks(displayTracks.map(t => t.id === trackId ? { ...t, name: safeName } : t));
     setEditingId(null);
-    await supabase.from('tracks').update({ name: editName.trim() }).eq('id', trackId);
+    await supabase.from('tracks').update({ name: safeName }).eq('id', trackId);
   };
 
   const handleMoveToFolder = async (trackId: string, folderId: string) => {
