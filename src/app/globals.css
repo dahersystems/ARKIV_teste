@@ -476,6 +476,31 @@ input, select { font-family: inherit; border: none; outline: none; background: n
 
 .folder-card--drag-over { transform: translateY(-6px); }
 
+/* Track-on-track drop target */
+.archive-card--drop-target .card__thumb {
+  box-shadow: 0 0 0 2.5px var(--green), 0 8px 24px var(--green-glow);
+  border-radius: 16px;
+}
+.archive-card--drop-target { transform: translateY(-4px); }
+
+.card__folder-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 14px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  z-index: 3;
+}
+
 .folder-drop-hint {
   position: absolute;
   inset: 0;

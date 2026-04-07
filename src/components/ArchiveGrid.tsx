@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAudioContext, Track, Folder as FolderType } from "@/context/AudioContext";
-import { Play, Pause, MoreHorizontal, FileAudio, Folder, Mic, Music, ArrowLeft, Pencil, FolderInput, FolderMinus, Trash2, Check, X, ImageIcon, Share2, Clock } from "lucide-react";
+import { Play, Pause, MoreHorizontal, FileAudio, Folder, FolderPlus, Mic, Music, ArrowLeft, Pencil, FolderInput, FolderMinus, Trash2, Check, X, ImageIcon, Share2, Clock } from "lucide-react";
 import { VersionsModal } from "@/components/VersionsModal";
 import { ShareModal } from "@/components/ShareModal";
 import { supabase } from "@/lib/supabase";
@@ -13,9 +13,10 @@ const ALLOWED_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "im
 const MAX_COVER_SIZE_MB = 5;
 
 export function ArchiveGrid() {
-  const { tracks, folders, currentFolderId, setCurrentFolderId, activeTrackId, togglePlay } = useAudioContext();
+  const { tracks, folders, currentFolderId, setCurrentFolderId, activeTrackId, togglePlay, addFolder } = useAudioContext();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dragOverTrackId, setDragOverTrackId] = useState<string | null>(null);
   const [localTracks, setLocalTracks] = useState<Track[] | null>(null);
   const [menu, setMenu] = useState<MenuState>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -57,6 +58,26 @@ export function ArchiveGrid() {
     setDraggingId(null);
     const { error } = await supabase.from('tracks').update({ folder_id: folderId }).eq('id', draggingId);
     if (error) { setLocalTracks(null); }
+  };
+
+  const handleDropOnTrack = async (targetTrackId: string) => {
+    const sourceId = draggingId;
+    setDragOverTrackId(null);
+    if (!sourceId || sourceId === targetTrackId) return;
+    setDraggingId(null);
+
+    const { data: folderData, error: folderError } = await supabase
+      .from('folders')
+      .insert([{ name: 'Nova Pasta' }])
+      .select()
+      .single();
+    if (folderError || !folderData) return;
+
+    setLocalTracks(prev => (prev ?? tracks).map(t =>
+      t.id === sourceId || t.id === targetTrackId ? { ...t, folder_id: folderData.id } : t
+    ));
+    addFolder({ id: folderData.id, name: folderData.name, createdAt: new Date(folderData.created_at).getTime() });
+    await supabase.from('tracks').update({ folder_id: folderData.id }).in('id', [sourceId, targetTrackId]);
   };
 
   const handleRename = async (trackId: string) => {
@@ -178,17 +199,27 @@ export function ArchiveGrid() {
             const isActive = track.id === activeTrackId;
             const isDragging = track.id === draggingId;
             const isEditing = editingId === track.id;
+            const isDropTarget = dragOverTrackId === track.id && draggingId !== track.id;
             return (
               <article
                 key={track.id}
-                className={`archive-card archive-card--new ${isActive ? 'archive-card--active' : ''} ${isDragging ? 'archive-card--dragging' : ''}`}
+                className={`archive-card archive-card--new ${isActive ? 'archive-card--active' : ''} ${isDragging ? 'archive-card--dragging' : ''} ${isDropTarget ? 'archive-card--drop-target' : ''}`}
                 draggable={!currentFolderId && !isEditing}
                 onDragStart={() => setDraggingId(track.id)}
-                onDragEnd={() => { setDraggingId(null); setDragOverFolderId(null); }}
+                onDragEnd={() => { setDraggingId(null); setDragOverFolderId(null); setDragOverTrackId(null); }}
+                onDragOver={(e) => { if (!currentFolderId && draggingId && draggingId !== track.id) { e.preventDefault(); setDragOverTrackId(track.id); setDragOverFolderId(null); } }}
+                onDragLeave={() => setDragOverTrackId(null)}
+                onDrop={(e) => { e.preventDefault(); handleDropOnTrack(track.id); }}
               >
                 <div className="card__thumb">
                   {track.cover_url && (
                     <img src={track.cover_url} alt="" className="card__cover-img" />
+                  )}
+                  {isDropTarget && (
+                    <div className="card__folder-hint">
+                      <FolderPlus size={20} strokeWidth={1.5} />
+                      <span>Nova pasta</span>
+                    </div>
                   )}
                   <button className="card__play" aria-label="Play" onClick={(e) => {
                     e.stopPropagation();
