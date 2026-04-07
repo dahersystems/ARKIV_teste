@@ -2,34 +2,75 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { User, Mail, Lock, Loader2 } from "lucide-react";
 
-type Mode = "signin" | "signup";
+type Tab = "login" | "register";
 
 export function LoginPage() {
-  const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [tab, setTab] = useState<Tab>("login");
+
+  // Login fields
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Register fields
+  const [regUsername, setRegUsername] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const reset = () => { setError(null); setSuccess(null); setForgotSent(false); };
+
+  const handleLogin = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    reset();
     setLoading(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setSuccess("Verifique seu email para confirmar a conta.");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+      if (error) throw error;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao autenticar.");
+      setError(err instanceof Error ? err.message : "Erro ao entrar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    reset();
+    if (regPassword !== regConfirm) { setError("As senhas não coincidem."); return; }
+    if (regPassword.length < 6) { setError("A senha precisa ter pelo menos 6 caracteres."); return; }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: regEmail,
+        password: regPassword,
+        options: { data: { username: regUsername.trim() || regEmail.split("@")[0] } },
+      });
+      if (error) throw error;
+      setSuccess("Conta criada! Verifique seu email para confirmar.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar conta.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!loginEmail) { setError("Digite seu email acima primeiro."); return; }
+    reset();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(loginEmail);
+      if (error) throw error;
+      setForgotSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar email.");
     } finally {
       setLoading(false);
     }
@@ -38,58 +79,138 @@ export function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+
+        {/* Logo */}
         <div className="auth-logo">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="13" stroke="var(--green)" strokeWidth="1.5" />
-            <circle cx="14" cy="14" r="5" fill="var(--green)" />
-            <circle cx="14" cy="14" r="2" fill="var(--bg)" />
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <circle cx="13" cy="13" r="12" stroke="var(--green)" strokeWidth="1.5" />
+            <circle cx="13" cy="13" r="4.5" fill="var(--green)" />
+            <circle cx="13" cy="13" r="1.8" fill="var(--bg)" />
           </svg>
           <span>ARKIV</span>
         </div>
 
-        <h1 className="auth-title">
-          {mode === "signin" ? "Bem-vindo de volta" : "Criar conta"}
-        </h1>
-        <p className="auth-subtitle">
-          {mode === "signin" ? "Entre para acessar seu arquivo" : "Comece a guardar suas músicas"}
-        </p>
-
-        <form onSubmit={handleSubmit} className="auth-form" noValidate>
-          <input
-            className="auth-input"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            autoFocus
-            autoComplete="email"
-          />
-          <input
-            className="auth-input"
-            type="password"
-            placeholder="Senha"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          />
-
-          {error && <p className="auth-error">{error}</p>}
-          {success && <p className="auth-success">{success}</p>}
-
-          <button className="auth-btn" type="submit" disabled={loading}>
-            {loading && <Loader2 size={15} className="animate-spin" />}
-            {mode === "signin" ? "Entrar" : "Criar conta"}
+        {/* Tabs */}
+        <div className="auth-tabs">
+          <button
+            className={`auth-tab ${tab === "login" ? "auth-tab--active" : ""}`}
+            onClick={() => { setTab("login"); reset(); }}
+          >
+            LOGIN
           </button>
-        </form>
+          <button
+            className={`auth-tab ${tab === "register" ? "auth-tab--active" : ""}`}
+            onClick={() => { setTab("register"); reset(); }}
+          >
+            REGISTER
+          </button>
+        </div>
 
-        <button
-          className="auth-switch"
-          onClick={() => { setMode(m => m === "signin" ? "signup" : "signin"); setError(null); setSuccess(null); }}
-        >
-          {mode === "signin" ? "Não tem conta? Criar conta" : "Já tem conta? Entrar"}
-        </button>
+        {/* LOGIN FORM */}
+        {tab === "login" && (
+          <form className="auth-form" onSubmit={handleLogin} noValidate>
+            <div className="auth-field">
+              <User size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="email"
+                placeholder="Email"
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                required
+                autoFocus
+                autoComplete="email"
+              />
+            </div>
+            <div className="auth-field">
+              <Lock size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="password"
+                placeholder="Senha"
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </div>
+
+            {error && <p className="auth-msg auth-msg--error">{error}</p>}
+            {forgotSent && <p className="auth-msg auth-msg--success">Email de recuperação enviado!</p>}
+
+            <button className="auth-submit" type="submit" disabled={loading}>
+              {loading ? <Loader2 size={15} className="animate-spin" /> : null}
+              Entrar
+            </button>
+
+            <button type="button" className="auth-forgot" onClick={handleForgotPassword} disabled={loading}>
+              Esqueci a senha
+            </button>
+          </form>
+        )}
+
+        {/* REGISTER FORM */}
+        {tab === "register" && (
+          <form className="auth-form" onSubmit={handleRegister} noValidate>
+            <div className="auth-field">
+              <User size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="text"
+                placeholder="Nome de usuário"
+                value={regUsername}
+                onChange={e => setRegUsername(e.target.value)}
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
+            <div className="auth-field">
+              <Mail size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="email"
+                placeholder="Email"
+                value={regEmail}
+                onChange={e => setRegEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+            <div className="auth-field">
+              <Lock size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="password"
+                placeholder="Senha"
+                value={regPassword}
+                onChange={e => setRegPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="auth-field">
+              <Lock size={15} className="auth-field__icon" />
+              <input
+                className="auth-field__input"
+                type="password"
+                placeholder="Confirmar senha"
+                value={regConfirm}
+                onChange={e => setRegConfirm(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+
+            {error && <p className="auth-msg auth-msg--error">{error}</p>}
+            {success && <p className="auth-msg auth-msg--success">{success}</p>}
+
+            <button className="auth-submit" type="submit" disabled={loading}>
+              {loading ? <Loader2 size={15} className="animate-spin" /> : null}
+              Criar conta
+            </button>
+          </form>
+        )}
+
       </div>
     </div>
   );
