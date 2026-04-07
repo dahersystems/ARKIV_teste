@@ -127,8 +127,10 @@ export function UploadModal() {
 
       setTimeout(() => handleClose(), 1200);
 
-    } catch {
-      setFileError("Erro ao enviar arquivo. Tente novamente.");
+    } catch (err) {
+      console.error("[UploadModal] upload error:", err);
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      setFileError(`Erro: ${msg}`);
       setUploadState("idle");
       setProgress(0);
     }

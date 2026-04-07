@@ -2100,3 +2100,111 @@ input, select { font-family: inherit; border: none; outline: none; background: n
   text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.18em;
   color: var(--t3); padding: 0 0 14px;
 }
+
+/* ── Auth / Login ─────────────────────────────────────── */
+.auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 32px;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--t1);
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--t1);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--t3);
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--t1);
+  transition: border-color var(--fast);
+}
+.auth-input:focus { outline: none; border-color: var(--green); }
+.auth-input::placeholder { color: var(--t3); }
+
+.auth-error {
+  font-size: 12px;
+  color: #ff5555;
+  text-align: center;
+  padding: 2px 0;
+}
+.auth-success {
+  font-size: 12px;
+  color: var(--green);
+  text-align: center;
+  padding: 2px 0;
+}
+
+.auth-btn {
+  margin-top: 4px;
+  width: 100%;
+  padding: 13px;
+  background: var(--green);
+  color: #000;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity var(--fast);
+}
+.auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-btn:not(:disabled):hover { opacity: 0.85; }
+
+.auth-switch {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--t3);
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--fast);
+}
+.auth-switch:hover { color: var(--t1); }
+
