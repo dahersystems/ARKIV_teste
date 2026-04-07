@@ -2,10 +2,15 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAudioContext, Track, Folder as FolderType } from "@/context/AudioContext";
-import { Play, Pause, MoreHorizontal, FileAudio, Folder, Mic, Music, ArrowLeft, Pencil, FolderInput, FolderMinus, Trash2, Check, X } from "lucide-react";
+import { Play, Pause, MoreHorizontal, FileAudio, Folder, Mic, Music, ArrowLeft, Pencil, FolderInput, FolderMinus, Trash2, Check, X, ImageIcon, Share2, Clock } from "lucide-react";
+import { VersionsModal } from "@/components/VersionsModal";
+import { ShareModal } from "@/components/ShareModal";
 import { supabase } from "@/lib/supabase";
 
 type MenuState = { trackId: string; x: number; y: number } | null;
+
+const ALLOWED_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_COVER_SIZE_MB = 5;
 
 export function ArchiveGrid() {
   const { tracks, folders, currentFolderId, setCurrentFolderId, activeTrackId, togglePlay } = useAudioContext();
@@ -16,6 +21,10 @@ export function ArchiveGrid() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [versionsTrack, setVersionsTrack] = useState<Track | null>(null);
+  const [shareTrack, setShareTrack] = useState<Track | null>(null);
+  const [coverForTrackId, setCoverForTrackId] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const displayTracks = localTracks ?? tracks;
 
@@ -77,6 +86,34 @@ export function ArchiveGrid() {
     if (!confirm(`Excluir "${track?.name}"? Esta ação não pode ser desfeita.`)) return;
     setLocalTracks(displayTracks.filter(t => t.id !== trackId));
     await supabase.from('tracks').delete().eq('id', trackId);
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !coverForTrackId) return;
+    e.target.value = "";
+
+    if (!ALLOWED_IMAGE_MIME.has(file.type)) return;
+    if (file.size > MAX_COVER_SIZE_MB * 1024 * 1024) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `${user.id}/${coverForTrackId}_${Date.now()}.${ext}`;
+
+      await supabase.storage.from("arkiv-covers").upload(path, file, { contentType: file.type, upsert: true });
+
+      const { data: { publicUrl } } = supabase.storage.from("arkiv-covers").getPublicUrl(path);
+
+      setLocalTracks(displayTracks.map(t =>
+        t.id === coverForTrackId ? { ...t, cover_url: publicUrl } : t
+      ));
+      await supabase.from("tracks").update({ cover_url: publicUrl }).eq("id", coverForTrackId);
+    } finally {
+      setCoverForTrackId(null);
+    }
   };
 
   const openMenu = (e: React.MouseEvent, trackId: string) => {
@@ -150,6 +187,9 @@ export function ArchiveGrid() {
                 onDragEnd={() => { setDraggingId(null); setDragOverFolderId(null); }}
               >
                 <div className="card__thumb">
+                  {track.cover_url && (
+                    <img src={track.cover_url} alt="" className="card__cover-img" />
+                  )}
                   <button className="card__play" aria-label="Play" onClick={(e) => {
                     e.stopPropagation();
                     togglePlay(track.id, track.audio_url);
@@ -202,6 +242,15 @@ export function ArchiveGrid() {
         )}
       </section>
 
+      {/* Hidden cover image input */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: "none" }}
+        onChange={handleCoverUpload}
+      />
+
       {/* CONTEXT MENU */}
       {menu && menuTrack && (
         <div
@@ -237,6 +286,19 @@ export function ArchiveGrid() {
               <button className="ctx-menu__item" onClick={() => { setEditingId(menu.trackId); setEditName(menuTrack.name); setMenu(null); }}>
                 <Pencil size={14} /> Renomear
               </button>
+              <button className="ctx-menu__item" onClick={() => { setShareTrack(menuTrack); setMenu(null); }}>
+                <Share2 size={14} /> Compartilhar
+              </button>
+              <button className="ctx-menu__item" onClick={() => { setVersionsTrack(menuTrack); setMenu(null); }}>
+                <Clock size={14} /> Versões
+              </button>
+              <button className="ctx-menu__item" onClick={() => {
+                setCoverForTrackId(menu.trackId);
+                setMenu(null);
+                setTimeout(() => coverInputRef.current?.click(), 50);
+              }}>
+                <ImageIcon size={14} /> Trocar capa
+              </button>
               {!currentFolderId && (
                 <button className="ctx-menu__item" onClick={() => setShowFolderPicker(true)}>
                   <FolderInput size={14} /> Mover para Pasta
@@ -254,6 +316,26 @@ export function ArchiveGrid() {
             </>
           )}
         </div>
+      )}
+      {/* Versions modal */}
+      {versionsTrack && (
+        <VersionsModal
+          track={versionsTrack}
+          onClose={() => setVersionsTrack(null)}
+          onAudioUrlUpdate={(trackId, newUrl) => {
+            setLocalTracks(displayTracks.map(t =>
+              t.id === trackId ? { ...t, audio_url: newUrl } : t
+            ));
+          }}
+        />
+      )}
+
+      {/* Share modal */}
+      {shareTrack && (
+        <ShareModal
+          track={shareTrack}
+          onClose={() => setShareTrack(null)}
+        />
       )}
     </main>
   );
